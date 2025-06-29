@@ -4,7 +4,6 @@ COPY --from=ghcr.io/astral-sh/uv:0.7.17 /uv /uvx /bin/
 WORKDIR /backend
 COPY backend/ backend
 COPY static/ static
-COPY requirements.txt .
 
 RUN uv sync
 

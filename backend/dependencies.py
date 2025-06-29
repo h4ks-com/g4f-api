@@ -19,6 +19,7 @@ MODEL_BLACKLIST = [
 
 BEST_MODELS_ORDERED = [
     "gpt-4o-mini-audio",
+    "openai",
     "gpt-4o",
     "gpt-4o-mini",
     "gpt-4",

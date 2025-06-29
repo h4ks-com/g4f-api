@@ -4,7 +4,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.7.17 /uv /uvx /bin/
 WORKDIR /backend
 COPY pyproject.toml pyproject.toml
 COPY uv.lock uv.lock
-RUN uv sync
+RUN export RUST_BACKTRACE=1 && uv sync
 
 COPY backend/ backend
 COPY static/ static

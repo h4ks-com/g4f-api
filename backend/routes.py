@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from backend.adapters import adapt_response
+from backend.background import provider_failures
 from backend.dependencies import (
     BEST_MODELS_ORDERED,
     CompletionParams,
@@ -19,7 +20,7 @@ from backend.dependencies import (
     provider_and_models,
 )
 from backend.errors import CustomValidationError
-from backend.models import CompletionRequest
+from backend.models import CompletionRequest, ProviderFailuresResponse
 from backend.settings import TEMPLATES_PATH
 
 router_root = APIRouter()
@@ -180,6 +181,19 @@ def get_list_models():
 @router_api.get("/health")
 def get_health_check():
     return {"status": "ok"}
+
+
+@router_api.get("/provider-failures")
+def get_provider_failures() -> ProviderFailuresResponse:
+    """
+    Returns detailed failure information for providers that have failed during the last test cycle.
+    Includes error messages, backtraces, and response details.
+    """
+    return ProviderFailuresResponse(
+        failures=provider_failures,
+        total_failed_providers=len(provider_failures),
+        description="Provider failure details from the last automated test cycle (run every hour)",
+    )
 
 
 ### UI routes

@@ -1,4 +1,5 @@
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -36,3 +37,19 @@ class CompletionProvider(BaseModel):
     @classmethod
     def serialize_supported_models(cls, v: set[str]) -> list[str]:
         return list(v)
+
+
+class ProviderFailure(BaseModel):
+    error_type: str
+    error_message: str
+    traceback: str
+    timestamp: datetime
+    model_used: str
+    messages: list[dict[str, str]]
+    response: dict[str, Any] | None
+
+
+class ProviderFailuresResponse(BaseModel):
+    failures: dict[str, ProviderFailure]
+    total_failed_providers: int
+    description: str

@@ -1,13 +1,18 @@
 import asyncio
 import logging
+import traceback
+from datetime import datetime
 
 from g4f import AsyncClient, ProviderType
 from g4f.client.stubs import ChatCompletion
 
 from backend.dependencies import base_working_providers_map, provider_and_models
 from backend.errors import CustomValidationError
+from backend.models import ProviderFailure
 
 lock = asyncio.Lock()
+
+provider_failures: dict[str, ProviderFailure] = {}
 
 
 async def ai_respond(messages: list[dict], model: str, provider: ProviderType) -> str:
@@ -30,6 +35,8 @@ async def test_provider(
 ) -> bool:
     """Sends hi to a provider and check if there is response or error."""
     print(f"Testing provider {provider.__name__}")
+    provider_name = provider.__name__
+
     async with semaphore:
         try:
             messages = [{"role": "user", "content": "hi, how are you?"}]
@@ -48,15 +55,50 @@ async def test_provider(
             async with asyncio.timeout(5):
                 text = await ai_respond(messages, model, provider=provider)
             result = len(text.strip()) > 0 and isinstance(text, str)
+
+            # If successful, remove from failures store
+            if result and provider_name in provider_failures:
+                del provider_failures[provider_name]
+
         except ValueError as e:
             logging.exception(e)
             result = False
+            provider_failures[provider_name] = ProviderFailure(
+                error_type="ValueError",
+                error_message=str(e),
+                traceback=traceback.format_exc(),
+                timestamp=datetime.now(),
+                model_used=model,
+                messages=messages,
+                response=None,
+            )
         except asyncio.TimeoutError as e:
             logging.exception(e)
             result = False
+            provider_failures[provider_name] = ProviderFailure(
+                error_type="TimeoutError",
+                error_message="Request timed out after 5 seconds",
+                traceback=traceback.format_exc(),
+                timestamp=datetime.now(),
+                model_used=model,
+                messages=messages,
+                response=None,
+            )
         except Exception as e:
             logging.exception(e)
             result = False
+            response_data = (
+                getattr(e, "response", None) if hasattr(e, "response") else None
+            )
+            provider_failures[provider_name] = ProviderFailure(
+                error_type=type(e).__name__,
+                error_message=str(e),
+                traceback=traceback.format_exc(),
+                timestamp=datetime.now(),
+                model_used=model,
+                messages=messages,
+                response=response_data,
+            )
 
         await queue.put((provider, result))
     return result

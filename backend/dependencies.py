@@ -45,7 +45,7 @@ PROVIDER_BLACKLIST = {
     "FreeRouter",
     "FreeGpt",
     "MarkItDown",
-    "Blackbox"
+    "Blackbox",
 }
 
 provider_models_override = {

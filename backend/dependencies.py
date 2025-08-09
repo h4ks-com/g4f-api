@@ -18,6 +18,9 @@ MODEL_BLACKLIST = [
 ]
 
 BEST_MODELS_ORDERED = [
+    "gpt-5",
+    "gpt-5-nano",
+    "gpt-5-chat",
     "gpt-4o-mini-audio",
     "openai",
     "gpt-4o",

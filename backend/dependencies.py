@@ -29,6 +29,7 @@ BEST_MODELS_ORDERED = [
 ]
 PROVIDER_BLACKLIST = {
     "AnyProvider",
+    "ApiAirforce",
     "AItianhuSpace",
     "Ollama",
     "Local",

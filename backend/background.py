@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from g4f import AsyncClient, ProviderType
 from g4f.client.stubs import ChatCompletion
@@ -13,6 +13,53 @@ from backend.models import ProviderFailure
 lock = asyncio.Lock()
 
 provider_failures: dict[str, ProviderFailure] = {}
+
+success_cache: list[tuple[str, str, datetime]] = []
+SUCCESS_CACHE_TTL_MINUTES = 30
+
+
+def add_successful_provider(provider_name: str, model: str) -> None:
+    global success_cache
+    current_time = datetime.now()
+
+    success_cache = [
+        entry
+        for entry in success_cache
+        if not (entry[0] == provider_name and entry[1] == model)
+    ]
+
+    success_cache.insert(0, (provider_name, model, current_time))
+    _clean_expired_cache()
+
+
+def get_cached_successful_providers(model_filter: str | None = None) -> list[str]:
+    global success_cache
+    _clean_expired_cache()
+
+    seen_providers = set[str]()
+    successful_providers = []
+
+    for provider_name, model, _ in success_cache:
+        if provider_name in seen_providers:
+            continue
+        if model_filter and model != model_filter:
+            continue
+
+        seen_providers.add(provider_name)
+        successful_providers.append(provider_name)
+
+    return successful_providers
+
+
+def clear_success_cache() -> None:
+    global success_cache
+    success_cache = []
+
+
+def _clean_expired_cache() -> None:
+    global success_cache
+    cutoff_time = datetime.now() - timedelta(minutes=SUCCESS_CACHE_TTL_MINUTES)
+    success_cache = [entry for entry in success_cache if entry[2] > cutoff_time]
 
 
 async def ai_respond(messages: list[dict], model: str, provider: ProviderType) -> str:
@@ -143,3 +190,6 @@ async def update_working_providers():
                 for provider_name in now_working_providers
             }
         )
+
+        # Clear success cache to start fresh after background testing
+        clear_success_cache()

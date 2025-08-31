@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import NamedTuple
 
 import g4f
 import requests
@@ -9,7 +8,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from backend.adapters import adapt_response
-from backend.background import provider_failures
+from backend.background import (
+    add_successful_provider,
+    get_cached_successful_providers,
+    provider_failures,
+)
 from backend.dependencies import (
     BEST_MODELS_ORDERED,
     CompletionParams,
@@ -39,32 +42,92 @@ def get_root():
     return RedirectResponse(url=router_ui.prefix)
 
 
-class NofailParms(NamedTuple):
-    model: str
-    provider: str
+class NofailParams:
+    def __init__(self, model: str, provider: str):
+        self.model = model
+        self.provider = provider
 
 
-def get_nofail_params(offset: int = 0) -> NofailParms:
+def get_nofail_params(offset: int = 0) -> NofailParams:
     for model in BEST_MODELS_ORDERED:
         try:
-            provider = g4f.get_model_and_provider(model, None, False)[1]
+            default_provider = g4f.get_model_and_provider(model, None, False)[1]
         except g4f.errors.ModelNotFoundError:
             logging.warning(f"Model not found: {model}")
             continue
 
-        # If the provider is not working, try to find another one that supports the model
-        if provider.__name__ not in provider_and_models.all_working_provider_names:
-            if offset > 0:
-                offset -= 1
-                continue
-            for provider_name in provider_and_models.all_working_provider_names:
-                if (
-                    model
-                    in provider_and_models.all_working_providers_map[
-                        provider_name
-                    ].supported_models
-                ):
-                    return NofailParms(model=model, provider=provider_name)
+        if offset > 0:
+            offset -= 1
+            continue
+
+        # Priority 1: Recently successful providers for this specific model
+        for provider_name in get_cached_successful_providers(model_filter=model):
+            if _is_provider_model_available(provider_name, model):
+                return NofailParams(model=model, provider=provider_name)
+
+        # Priority 2: Default provider if working
+        if default_provider.__name__ in provider_and_models.all_working_provider_names:
+            return NofailParams(model=model, provider=default_provider.__name__)
+
+        # Priority 3: Any recently successful provider
+        for provider_name in get_cached_successful_providers():
+            if _is_provider_model_available(provider_name, model):
+                return NofailParams(model=model, provider=provider_name)
+
+        # Priority 4: Any working provider supporting the model
+        for provider_name in provider_and_models.all_working_provider_names:
+            if _is_provider_model_available(provider_name, model):
+                return NofailParams(model=model, provider=provider_name)
+
+    raise HTTPException(
+        status_code=500, detail="Failed to find a model and provider to use"
+    )
+
+
+def _is_provider_model_available(provider_name: str, model: str) -> bool:
+    return (
+        provider_name in provider_and_models.all_working_provider_names
+        and model
+        in provider_and_models.all_working_providers_map[provider_name].supported_models
+    )
+
+
+def get_nofail_params_excluding_failed(
+    failed_combinations: set[tuple[str, str]], offset: int = 0
+) -> NofailParams:
+    for model in BEST_MODELS_ORDERED:
+        try:
+            default_provider = g4f.get_model_and_provider(model, None, False)[1]
+        except g4f.errors.ModelNotFoundError:
+            logging.warning(f"Model not found: {model}")
+            continue
+
+        if offset > 0:
+            offset -= 1
+            continue
+
+        # Priority 1: Recently successful providers for this specific model (excluding failed)
+        for provider_name in get_cached_successful_providers(model_filter=model):
+            if _is_provider_model_available(provider_name, model):
+                if (model, provider_name) not in failed_combinations:
+                    return NofailParams(model=model, provider=provider_name)
+
+        # Priority 2: Default provider if working (excluding failed)
+        if default_provider.__name__ in provider_and_models.all_working_provider_names:
+            if (model, default_provider.__name__) not in failed_combinations:
+                return NofailParams(model=model, provider=default_provider.__name__)
+
+        # Priority 3: Any recently successful provider (excluding failed)
+        for provider_name in get_cached_successful_providers():
+            if _is_provider_model_available(provider_name, model):
+                if (model, provider_name) not in failed_combinations:
+                    return NofailParams(model=model, provider=provider_name)
+
+        # Priority 4: Any working provider supporting the model (excluding failed)
+        for provider_name in provider_and_models.all_working_provider_names:
+            if _is_provider_model_available(provider_name, model):
+                if (model, provider_name) not in failed_combinations:
+                    return NofailParams(model=model, provider=provider_name)
 
     raise HTTPException(
         status_code=500, detail="Failed to find a model and provider to use"
@@ -108,7 +171,8 @@ def post_completion(
     nofail = False
     if params.model is None:
         if params.provider is None:
-            model_name, provider_name = get_nofail_params()
+            nofail_params = get_nofail_params()
+            model_name, provider_name = nofail_params.model, nofail_params.provider
             nofail = True
         else:
             provider_name = params.provider
@@ -118,6 +182,8 @@ def post_completion(
         provider_name = params.provider
 
     ip_detected_response: CompletionResponse | None = None
+    failed_combinations: set[tuple[str, str]] = set()
+
     for attempt in range(10):
         print(f"Trying model: {model_name} and provider: {provider_name}")
         try:
@@ -129,8 +195,14 @@ def post_completion(
             )
             if isinstance(response, str):
                 if response.strip() == "" and nofail:
-                    model_name, provider_name = get_nofail_params(attempt)
-                    model_name = get_best_model_for_provider(provider_name)
+                    failed_combinations.add((model_name, provider_name))
+                    nofail_params = get_nofail_params_excluding_failed(
+                        failed_combinations, attempt
+                    )
+                    model_name, provider_name = (
+                        nofail_params.model,
+                        nofail_params.provider,
+                    )
                     continue
 
                 completion_response = CompletionResponse(
@@ -142,10 +214,12 @@ def post_completion(
                 # HACK: Workaround for IP ban from some providers
                 ip = get_public_ip()
                 if ip is not None and ip in response.lower():
-                    if ip_detected_response is not None:
+                    if ip_detected_response is None:
                         ip_detected_response = completion_response
                     continue
 
+                # Cache successful provider-model combination
+                add_successful_provider(provider_name, model_name)
                 return completion_response
 
             raise CustomValidationError(
@@ -155,11 +229,18 @@ def post_completion(
         except Exception as e:
             if not nofail:
                 raise e
-            provider_name = get_nofail_params(attempt).provider
-            model_name = get_best_model_for_provider(provider_name)
+            failed_combinations.add((model_name, provider_name))
+            nofail_params = get_nofail_params_excluding_failed(
+                failed_combinations, attempt
+            )
+            model_name, provider_name = nofail_params.model, nofail_params.provider
 
     # Better than nothing maybe
     if ip_detected_response is not None:
+        # Cache this success too, as it did work despite IP detection
+        add_successful_provider(
+            ip_detected_response.provider, ip_detected_response.model
+        )
         return ip_detected_response
 
     raise HTTPException(

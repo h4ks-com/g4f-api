@@ -15,6 +15,7 @@ from backend.models import CompletionModel, CompletionProvider, Message
 MODEL_BLACKLIST = [
     "TextGenerations",
     "ImageGenerations",
+    "gpt-4o-mini-audio-preview",
 ]
 
 BEST_MODELS_ORDERED = [

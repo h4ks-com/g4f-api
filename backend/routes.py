@@ -9,7 +9,11 @@ from fastapi.templating import Jinja2Templates
 from g4f.errors import ModelNotFoundError, ProviderNotWorkingError
 
 from backend.adapters import adapt_response
-from backend.background import add_successful_provider, get_cached_successful_providers, provider_failures
+from backend.background import (
+    add_successful_provider,
+    get_cached_successful_providers,
+    provider_failures,
+)
 from backend.dependencies import (
     BEST_MODELS_ORDERED,
     CompletionParams,
@@ -76,17 +80,22 @@ def get_nofail_params(offset: int = 0) -> NofailParams:
             if _is_provider_model_available(provider_name, model):
                 return NofailParams(model=model, provider=provider_name)
 
-    raise HTTPException(status_code=500, detail="Failed to find a model and provider to use")
+    raise HTTPException(
+        status_code=500, detail="Failed to find a model and provider to use"
+    )
 
 
 def _is_provider_model_available(provider_name: str, model: str) -> bool:
     return (
         provider_name in provider_and_models.all_working_provider_names
-        and model in provider_and_models.all_working_providers_map[provider_name].supported_models
+        and model
+        in provider_and_models.all_working_providers_map[provider_name].supported_models
     )
 
 
-def get_nofail_params_excluding_failed(failed_combinations: set[tuple[str, str]], offset: int = 0) -> NofailParams:
+def get_nofail_params_excluding_failed(
+    failed_combinations: set[tuple[str, str]], offset: int = 0
+) -> NofailParams:
     for model in BEST_MODELS_ORDERED:
         try:
             default_provider = g4f.get_model_and_provider(model, None, False)[1]
@@ -121,13 +130,17 @@ def get_nofail_params_excluding_failed(failed_combinations: set[tuple[str, str]]
                 if (model, provider_name) not in failed_combinations:
                     return NofailParams(model=model, provider=provider_name)
 
-    raise HTTPException(status_code=500, detail="Failed to find a model and provider to use")
+    raise HTTPException(
+        status_code=500, detail="Failed to find a model and provider to use"
+    )
 
 
 def get_best_model_for_provider(provider_name: str) -> str:
     provider = provider_and_models.all_working_providers_map.get(provider_name)
     if provider is None:
-        raise HTTPException(status_code=422, detail=f"Provider not found: {provider_name}")
+        raise HTTPException(
+            status_code=422, detail=f"Provider not found: {provider_name}"
+        )
     models = list(provider.supported_models)
     if not models:
         raise HTTPException(
@@ -184,7 +197,9 @@ def post_completion(
             if isinstance(response, str):
                 if response.strip() == "" and nofail:
                     failed_combinations.add((model_name, provider_name))
-                    nofail_params = get_nofail_params_excluding_failed(failed_combinations, attempt)
+                    nofail_params = get_nofail_params_excluding_failed(
+                        failed_combinations, attempt
+                    )
                     model_name, provider_name = (
                         nofail_params.model,
                         nofail_params.provider,
@@ -216,13 +231,17 @@ def post_completion(
             if not nofail:
                 raise e
             failed_combinations.add((model_name, provider_name))
-            nofail_params = get_nofail_params_excluding_failed(failed_combinations, attempt)
+            nofail_params = get_nofail_params_excluding_failed(
+                failed_combinations, attempt
+            )
             model_name, provider_name = nofail_params.model, nofail_params.provider
 
     # Better than nothing maybe
     if ip_detected_response is not None:
         # Cache this success too, as it did work despite IP detection
-        add_successful_provider(ip_detected_response.provider, ip_detected_response.model)
+        add_successful_provider(
+            ip_detected_response.provider, ip_detected_response.model
+        )
         return ip_detected_response
 
     raise HTTPException(

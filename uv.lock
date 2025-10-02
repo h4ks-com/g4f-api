@@ -568,7 +568,7 @@ wheels = [
 
 [[package]]
 name = "g4f"
-version = "0.6.3.0"
+version = "0.6.3.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -577,9 +577,9 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/0e/4b22f726dfcca9f3c6e421da8d3e7eb9340ca03deb23fd31f732692ac560/g4f-0.6.3.0.tar.gz", hash = "sha256:e49ee97d67d086c7d3adba2a66bb6216f0b53ad910aa4fe88210321f3a999b8e", size = 377221, upload-time = "2025-09-21T13:25:43.998Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/47/c5a17f2c4bbdf810eadc103df7d0d0228ed5864e25c15eb45d5daa096f75/g4f-0.6.3.2.tar.gz", hash = "sha256:dccb366833ec35a38e701bfa461c5f3e9b6e104aa95ab6a5b2b6ec26979e1379", size = 419724, upload-time = "2025-10-02T01:38:45.588Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/65/0539183e04f9c667407ebe571ade4f497ac2f1585ca3bc94de18d910e130/g4f-0.6.3.0-py3-none-any.whl", hash = "sha256:7d7b679ee3a86c1a51549acd510117fe967930bd05fff718c77ffd4428ad993a", size = 489017, upload-time = "2025-09-21T13:25:41.471Z" },
+    { url = "https://files.pythonhosted.org/packages/34/b8/b2a81e2185f3f0ef715ba3798c1c91079ac6680fed9e9b0477945035bba6/g4f-0.6.3.2-py3-none-any.whl", hash = "sha256:41473749067930c7ec8433408d6d14d0561c2c71c6648a1ebfb8fc3f2ddd7590", size = 531533, upload-time = "2025-10-02T01:38:43.124Z" },
 ]
 
 [[package]]
@@ -617,7 +617,7 @@ requires-dist = [
     { name = "curl-cffi", specifier = "==0.11.4" },
     { name = "fastapi", specifier = "==0.115.12" },
     { name = "fastapi-utils", specifier = "==0.8.0" },
-    { name = "g4f", extras = ["openai", "webdriver"], specifier = "==0.6.3.0" },
+    { name = "g4f", extras = ["openai", "webdriver"], specifier = "==0.6.3.2" },
     { name = "hypercorn", specifier = "==0.17.3" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "nodriver", specifier = "==0.46.1" },

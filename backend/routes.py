@@ -194,7 +194,7 @@ def post_completion(
                 messages=[msg.model_dump() for msg in completion.messages],
                 stream=False,
             )
-            if isinstance(response, (str, dict)):
+            if isinstance(response, str | dict):
                 adapted_text = adapt_response(model_name, response)
 
                 if adapted_text.strip() == "" and nofail:

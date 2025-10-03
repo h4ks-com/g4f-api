@@ -194,8 +194,10 @@ def post_completion(
                 messages=[msg.model_dump() for msg in completion.messages],
                 stream=False,
             )
-            if isinstance(response, str):
-                if response.strip() == "" and nofail:
+            if isinstance(response, (str, dict)):
+                adapted_text = adapt_response(model_name, response)
+
+                if adapted_text.strip() == "" and nofail:
                     failed_combinations.add((model_name, provider_name))
                     nofail_params = get_nofail_params_excluding_failed(
                         failed_combinations, attempt
@@ -207,14 +209,14 @@ def post_completion(
                     continue
 
                 completion_response = CompletionResponse(
-                    completion=adapt_response(model_name, response),
+                    completion=adapted_text,
                     model=model_name,
                     provider=provider_name,
                 )
 
                 # HACK: Workaround for IP ban from some providers
                 ip = get_public_ip()
-                if ip is not None and ip in response.lower():
+                if ip is not None and ip in adapted_text.lower():
                     if ip_detected_response is None:
                         ip_detected_response = completion_response
                     continue

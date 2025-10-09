@@ -54,6 +54,8 @@ PROVIDER_BLACKLIST = {
     "FreeGpt",
     "MarkItDown",
     "Blackbox",
+    "CachedSearch",
+    "Yupp",
 }
 
 provider_models_override = {

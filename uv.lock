@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -568,7 +568,7 @@ wheels = [
 
 [[package]]
 name = "g4f"
-version = "0.6.4.0"
+version = "6.5.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -577,9 +577,9 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/74/5effb57a414ce5a81c9d80c7f9dfe60b3b3ecee02aad3bd1ab967fb25ac0/g4f-0.6.4.0.tar.gz", hash = "sha256:028392b35eda1d05ad8d71b95d55ef641bd1c266413135e6ff92c2409c886e0b", size = 434584, upload-time = "2025-10-12T17:27:38.798Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/76/0049246bd263c08d9c7a460c50283b12d48d970e759df81f88869b5ab173/g4f-6.5.7.tar.gz", hash = "sha256:162f7178b2831231f6ab99c547b10670e6402707e9075210886162b903610f09", size = 454945, upload-time = "2025-11-02T08:04:00.573Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/8a/af20601ab576d7cfddad572cb7513c7bc08f39fd1eba6a640a0de9d98d87/g4f-0.6.4.0-py3-none-any.whl", hash = "sha256:de96cf82b911cd9c3c1389ff481b7dff3822ab62c1597fc100428f8e910c40a4", size = 549720, upload-time = "2025-10-12T17:27:36.548Z" },
+    { url = "https://files.pythonhosted.org/packages/78/3a/5d78c58a7440b83f400b8f6c291a00e566bd57807b20b35d1f696b129949/g4f-6.5.7-py3-none-any.whl", hash = "sha256:be6d8dcfaf844556a2f2cccef3115c354bd5153f9e9c20efaeb033e1e141df99", size = 572176, upload-time = "2025-11-02T08:03:58.028Z" },
 ]
 
 [[package]]
@@ -617,7 +617,7 @@ requires-dist = [
     { name = "curl-cffi", specifier = "==0.11.4" },
     { name = "fastapi", specifier = "==0.115.12" },
     { name = "fastapi-utils", specifier = "==0.8.0" },
-    { name = "g4f", extras = ["openai", "webdriver"], specifier = "==0.6.4.0" },
+    { name = "g4f", extras = ["openai", "webdriver"], specifier = "==6.5.7" },
     { name = "hypercorn", specifier = "==0.17.3" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "nodriver", specifier = "==0.46.1" },

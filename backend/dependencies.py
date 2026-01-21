@@ -30,6 +30,7 @@ BEST_MODELS_ORDERED = [
 ]
 PROVIDER_BLACKLIST = {
     "Claude",
+    "Perplexity",
     "GoogleSearch",
     "OpenaiChat",
     "AnyProvider",

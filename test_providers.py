@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import sys
+
 from backend.background import test_provider
 from backend.dependencies import base_working_providers_map
 
@@ -35,7 +36,7 @@ async def test_top_providers():
             results["failed"].append(name)
 
     print(f"\n{'=' * 60}")
-    print(f"Results:")
+    print("Results:")
     print(f"{'=' * 60}")
     print(f"✓ Working: {len(results['working'])}/{len(priority_providers)}")
     print(f"✗ Failed:  {len(results['failed'])}/{len(priority_providers)}")

@@ -20,6 +20,14 @@ MODEL_BLACKLIST = [
 
 BEST_MODELS_ORDERED = [
     "gpt-5",
+    "o3",
+    "o3pro",
+    "gpt41",
+    "grok4",
+    "claude45sonnet",
+    "qwen3-235b-a22b",
+    "qwen-max-latest",
+    "qwq-32b",
     "gpt-5-nano",
     "gpt-5-chat",
     "gpt-4o-mini-audio",
@@ -28,35 +36,23 @@ BEST_MODELS_ORDERED = [
     "gpt-4o-mini",
     "gpt-4",
 ]
-PROVIDER_BLACKLIST = {
-    "Claude",
+
+PROVIDER_WHITELIST = {
     "Perplexity",
-    "GoogleSearch",
-    "OpenaiChat",
-    "AnyProvider",
-    "ApiAirforce",
-    "AItianhuSpace",
-    "Ollama",
-    "Local",
-    "Aura",
-    "AiChatOnline",
-    "Allyfy",
-    "AIUncensored",
-    "AmigoChat",
-    "ChatGpt",
-    "ChatGptEs",
-    "Mhystical",
-    "Custom",
-    "HuggingFace",
-    "CablyAI",
+    "Qwen",
+    "HuggingSpace",
+    "GradientNetwork",
+    "OperaAria",
+    "WeWordle",
     "Yqcloud",
-    "Goabror",
-    "FreeRouter",
-    "FreeGpt",
-    "MarkItDown",
-    "Blackbox",
-    "CachedSearch",
-    "Yupp",
+    "MetaAI",
+    "DeepInfra",
+    "Chatai",
+    "EasyChat",
+    "GLM",
+    "LambdaChat",
+    "Mintlify",
+    "PollinationsAI",
 }
 
 provider_models_override = {
@@ -76,7 +72,7 @@ base_working_providers_map = {
     for provider in g4f.Provider.__providers__
     if provider.working
     and not provider.needs_auth
-    and provider.__name__ not in PROVIDER_BLACKLIST
+    and provider.__name__ in PROVIDER_WHITELIST
 }
 
 

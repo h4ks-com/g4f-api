@@ -137,6 +137,14 @@ async def test_provider(
             response_data = (
                 getattr(e, "response", None) if hasattr(e, "response") else None
             )
+            if response_data is not None and not isinstance(response_data, dict):
+                try:
+                    response_data = {
+                        "status": getattr(response_data, "status", None),
+                        "url": str(getattr(response_data, "url", "")),
+                    }
+                except Exception:
+                    response_data = {"raw": str(type(response_data))}
             provider_failures[provider_name] = ProviderFailure(
                 error_type=type(e).__name__,
                 error_message=str(e),

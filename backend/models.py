@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 
 class Message(BaseModel):
@@ -46,7 +46,20 @@ class ProviderFailure(BaseModel):
     timestamp: datetime
     model_used: str
     messages: list[dict[str, str]]
-    response: dict[str, Any] | None
+    response: dict[str, Any] | None = None
+
+    @field_validator("response", mode="before")
+    @classmethod
+    def coerce_response(cls, v: Any) -> dict[str, Any] | None:
+        if v is None or isinstance(v, dict):
+            return v
+        try:
+            return {
+                "status": getattr(v, "status", None),
+                "url": str(getattr(v, "url", "")),
+            }
+        except Exception:
+            return {"raw": str(type(v))}
 
 
 class ProviderFailuresResponse(BaseModel):

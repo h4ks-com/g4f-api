@@ -5,9 +5,25 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 
 from backend.models.usage import Usage
 
+__all__ = [
+    "Message",
+    "ToolCall",
+    "ToolCallFunction",
+    "ToolChoice",
+    "ToolChoiceFunction",
+    "ToolDefinition",
+    "ToolFunction",
+    "CompletionRequest",
+    "CompletionResponse",
+    "CompletionModel",
+    "CompletionProvider",
+    "ProviderFailure",
+    "ProviderFailuresResponse",
+]
+
 
 class Message(BaseModel):
-    role: Literal["user", "assistant"] = Field(
+    role: Literal["user", "assistant", "system", "tool"] = Field(
         ..., description="Who is sending the message"
     )
     content: str = Field(..., description="Content of the message")

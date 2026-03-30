@@ -1,8 +1,8 @@
+import inspect
 from dataclasses import dataclass, field
 from typing import TypeVar
 
 import g4f
-import inspect
 from fastapi import Query
 from fastapi.openapi.models import Example
 from g4f.models import ModelUtils

@@ -227,18 +227,20 @@ def _to_tool_calls(raw_tool_calls: list) -> list[ToolCall] | None:
 
 def _to_usage(g4f_usage: G4fUsageModel) -> Usage:
     """Convert g4f UsageModel to our Usage model."""
+    prompt_details = g4f_usage.prompt_tokens_details
+    completion_details = g4f_usage.completion_tokens_details
     return Usage(
         prompt_tokens=g4f_usage.prompt_tokens,
         completion_tokens=g4f_usage.completion_tokens,
         total_tokens=g4f_usage.total_tokens,
         prompt_tokens_details=PromptTokenDetails(
-            cached_tokens=g4f_usage.prompt_tokens_details.cached_tokens,
-            audio_tokens=g4f_usage.prompt_tokens_details.audio_tokens,
+            cached_tokens=prompt_details.cached_tokens,
+            audio_tokens=getattr(prompt_details, "audio_tokens", 0),
         ),
         completion_tokens_details=CompletionTokenDetails(
-            reasoning_tokens=g4f_usage.completion_tokens_details.reasoning_tokens,
-            image_tokens=g4f_usage.completion_tokens_details.image_tokens,
-            audio_tokens=g4f_usage.completion_tokens_details.audio_tokens,
+            reasoning_tokens=getattr(completion_details, "reasoning_tokens", 0),
+            image_tokens=getattr(completion_details, "image_tokens", None),
+            audio_tokens=getattr(completion_details, "audio_tokens", None),
         ),
     )
 

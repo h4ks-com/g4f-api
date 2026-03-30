@@ -14,8 +14,8 @@ class CompletionTokenDetails(BaseModel):
     """Completion token usage breakdown (matches g4f.client.stubs.CompletionTokenDetails)."""
 
     reasoning_tokens: int = Field(0)
-    image_tokens: int = Field(0)
-    audio_tokens: int = Field(0)
+    image_tokens: int | None = Field(None)
+    audio_tokens: int | None = Field(None)
 
 
 class Usage(BaseModel):

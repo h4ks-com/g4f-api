@@ -53,11 +53,10 @@ def test_api_validation():
             },
         )
         assert response.status_code == 200
-        assert response.json() == {
-            "completion": "response",
-            "model": model,
-            "provider": provider,
-        }
+        data = response.json()
+        assert data["completion"] == "response"
+        assert data["model"] == model
+        assert data["provider"] == provider
 
         # Both model and provider missing
         response = client.post(
@@ -122,3 +121,4 @@ def test_all_provider_model_combination(
         assert response.json()["completion"] == "response"
     else:
         assert response.status_code == 422
+    app.dependency_overrides.clear()

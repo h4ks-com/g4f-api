@@ -1,6 +1,5 @@
 import logging
 from functools import lru_cache
-from typing import Any
 
 import g4f
 import requests
@@ -8,6 +7,8 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from g4f.client import AsyncClient
+from g4f.client.stubs import ChatCompletion as G4fChatCompletion
+from g4f.client.stubs import UsageModel as G4fUsageModel
 from g4f.errors import ModelNotFoundError, ProviderNotWorkingError
 
 from backend.adapters import adapt_response
@@ -28,8 +29,12 @@ from backend.errors import CustomValidationError
 from backend.models import (
     CompletionRequest,
     CompletionResponse,
+    CompletionTokenDetails,
+    PromptTokenDetails,
     ProviderFailuresResponse,
     ToolCall,
+    ToolCallFunction,
+    Usage,
 )
 from backend.settings import TEMPLATES_PATH
 
@@ -201,12 +206,10 @@ def _get_provider_class(provider_name: str):
     return None
 
 
-def _extract_tool_calls(raw_tool_calls: Any) -> list[ToolCall] | None:
-    """Extract tool calls from g4f response into typed ToolCall models."""
+def _to_tool_calls(raw_tool_calls: list) -> list[ToolCall] | None:
+    """Convert g4f ToolCallModel list to our typed ToolCall list."""
     if not raw_tool_calls:
         return None
-    from backend.models import ToolCallFunction
-
     result = []
     for tc in raw_tool_calls:
         result.append(
@@ -222,21 +225,22 @@ def _extract_tool_calls(raw_tool_calls: Any) -> list[ToolCall] | None:
     return result if result else None
 
 
-def _build_usage(raw_usage: Any) -> Any:
-    """Build a typed Usage model from the g4f response, or None."""
-    if raw_usage is None:
-        return None
-    try:
-        from backend.models import Usage
-
-        d = (
-            raw_usage.model_dump()
-            if hasattr(raw_usage, "model_dump")
-            else dict(raw_usage)
-        )
-        return Usage(**{k: v for k, v in d.items() if k in Usage.model_fields})
-    except Exception:
-        return None
+def _to_usage(g4f_usage: G4fUsageModel) -> Usage:
+    """Convert g4f UsageModel to our Usage model."""
+    return Usage(
+        prompt_tokens=g4f_usage.prompt_tokens,
+        completion_tokens=g4f_usage.completion_tokens,
+        total_tokens=g4f_usage.total_tokens,
+        prompt_tokens_details=PromptTokenDetails(
+            cached_tokens=g4f_usage.prompt_tokens_details.cached_tokens,
+            audio_tokens=g4f_usage.prompt_tokens_details.audio_tokens,
+        ),
+        completion_tokens_details=CompletionTokenDetails(
+            reasoning_tokens=g4f_usage.completion_tokens_details.reasoning_tokens,
+            image_tokens=g4f_usage.completion_tokens_details.image_tokens,
+            audio_tokens=g4f_usage.completion_tokens_details.audio_tokens,
+        ),
+    )
 
 
 async def _call_with_tools(
@@ -248,7 +252,7 @@ async def _call_with_tools(
         raise RuntimeError(f"Provider not found: {provider_name}")
 
     client = AsyncClient()
-    kwargs: dict[str, Any] = {"stream": False}
+    kwargs = {"stream": False}
     if completion.tools:
         kwargs["tools"] = [t.model_dump() for t in completion.tools]
     if completion.tool_choice is not None:
@@ -257,31 +261,24 @@ async def _call_with_tools(
         else:
             kwargs["tool_choice"] = completion.tool_choice.model_dump()
 
-    response = await client.chat.completions.create(
+    response: G4fChatCompletion = await client.chat.completions.create(
         model=model_name,
         provider=provider_class,
         messages=[msg.model_dump() for msg in completion.messages],
         **kwargs,
     )
 
-    choice = response.choices[0] if response.choices else None
-    if choice is None:
-        raise RuntimeError("No response choices returned")
-
+    choice = response.choices[0]
     msg = choice.message
-    content = getattr(msg, "content", None) or ""
-    raw_tool_calls = getattr(msg, "tool_calls", None)
-    finish_reason = getattr(choice, "finish_reason", None) or "stop"
-    raw_usage = getattr(response, "usage", None)
 
     return CompletionResponse(
-        completion=content,
+        completion=msg.content or "",
         model=model_name,
         provider=provider_name,
-        tool_calls=_extract_tool_calls(raw_tool_calls),
-        finish_reason=finish_reason,
-        id=getattr(response, "id", None),
-        usage=_build_usage(raw_usage),
+        tool_calls=_to_tool_calls(msg.tool_calls),
+        finish_reason=choice.finish_reason,
+        id=response.id,
+        usage=_to_usage(response.usage),
     )
 
 

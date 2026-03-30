@@ -7,20 +7,26 @@ from backend.models.completion import (
     ProviderFailure,
     ProviderFailuresResponse,
     ToolCall,
+    ToolCallFunction,
     ToolChoice,
+    ToolChoiceFunction,
     ToolDefinition,
     ToolFunction,
-    ToolCallFunction,
-    ToolChoiceFunction,
 )
-from backend.models.usage import Usage, UsageDetails
+from backend.models.usage import (
+    CompletionTokenDetails,
+    PromptTokenDetails,
+    Usage,
+)
 
 __all__ = [
     "CompletionModel",
     "CompletionProvider",
     "CompletionRequest",
     "CompletionResponse",
+    "CompletionTokenDetails",
     "Message",
+    "PromptTokenDetails",
     "ProviderFailure",
     "ProviderFailuresResponse",
     "ToolCall",
@@ -30,5 +36,4 @@ __all__ = [
     "ToolDefinition",
     "ToolFunction",
     "Usage",
-    "UsageDetails",
 ]

@@ -57,7 +57,7 @@ class TestBackwardsCompatibility:
 
 
 def _mock_g4f_response(content=None, tool_calls=None, finish_reason="stop"):
-    """Build a mock g4f AsyncClient response."""
+    """Build a mock g4f ChatCompletion response."""
     mock_msg = MagicMock()
     mock_msg.content = content
     mock_msg.tool_calls = tool_calls
@@ -66,15 +66,26 @@ def _mock_g4f_response(content=None, tool_calls=None, finish_reason="stop"):
     mock_choice.message = mock_msg
     mock_choice.finish_reason = finish_reason
 
+    mock_prompt_details = MagicMock()
+    mock_prompt_details.cached_tokens = 0
+    mock_prompt_details.audio_tokens = 0
+
+    mock_completion_details = MagicMock()
+    mock_completion_details.reasoning_tokens = 0
+    mock_completion_details.image_tokens = 0
+    mock_completion_details.audio_tokens = 0
+
+    mock_usage = MagicMock()
+    mock_usage.prompt_tokens = 10
+    mock_usage.completion_tokens = 5
+    mock_usage.total_tokens = 15
+    mock_usage.prompt_tokens_details = mock_prompt_details
+    mock_usage.completion_tokens_details = mock_completion_details
+
     mock_response = MagicMock()
     mock_response.id = "chatcmpl-test123"
     mock_response.choices = [mock_choice]
-    mock_response.usage = MagicMock()
-    mock_response.usage.model_dump.return_value = {
-        "prompt_tokens": 10,
-        "completion_tokens": 5,
-        "total_tokens": 15,
-    }
+    mock_response.usage = mock_usage
     return mock_response
 
 

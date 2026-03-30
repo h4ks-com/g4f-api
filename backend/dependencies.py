@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import TypeVar
 
 import g4f
+import inspect
 from fastapi import Query
 from fastapi.openapi.models import Example
 from g4f.models import ModelUtils
@@ -65,6 +66,19 @@ provider_models_override = {
     ],
     "ChatGptEs": ["gpt-4o", "gpt-4o-mini", "chatgpt-4o-latest"],
 }
+
+
+def _provider_has_tools_support(provider) -> bool:
+    """Check if a provider's source code references tool/function calling."""
+    try:
+        src = inspect.getsource(provider.create_async_generator)
+        return '"tools"' in src or "'tools'" in src
+    except (OSError, TypeError):
+        try:
+            src = inspect.getsource(provider.create_generator)
+            return '"tools"' in src or "'tools'" in src
+        except (OSError, TypeError):
+            return False
 
 
 base_working_providers_map = {
@@ -204,6 +218,16 @@ class ProviderAndModels:
                         )
 
         self.all_model_names = list(self.all_models_map.keys())
+
+        # Detect tool support by inspecting provider source code
+        for (
+            provider_name,
+            completion_provider,
+        ) in self.all_working_providers_map.items():
+            if provider_name in working_providers_map:
+                provider = working_providers_map[provider_name]
+                if _provider_has_tools_support(provider):
+                    completion_provider.supports_tools = True
 
         for provider_name in provider_models_override:
             if provider_name in self.all_working_providers_map:

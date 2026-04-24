@@ -554,7 +554,7 @@ wheels = [
 
 [[package]]
 name = "g4f"
-version = "7.3.4"
+version = "7.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -563,9 +563,9 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b9/d0/2b6e13e84723b7b1c2882d015cdd34075d535c225f1c4d0230a29fd95319/g4f-7.3.4.tar.gz", hash = "sha256:e2e6dc3900b0086d3b631f09ae94a39eba29d5a5d88b80fbde4f289201390174", size = 498279, upload-time = "2026-03-21T20:39:52.874Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/4d/31609785f95edb71c7cfe79082b4ccbc8c63dfb2ddff8249c948467a9e79/g4f-7.3.5.tar.gz", hash = "sha256:9b0abf1d6b28588354d38f9f6400a8062a4b6aac3bc1c4799c03589f20f6f661", size = 498422, upload-time = "2026-03-31T15:33:24.827Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/8b/dbb2223c9598ca868d5a7e4f785df578cdda7bf72578f9ba14a4de590ad9/g4f-7.3.4-py3-none-any.whl", hash = "sha256:9d268a01790f537747d3f752223dc2d9fe99817b53b3f0e06511ae3c862495bc", size = 592118, upload-time = "2026-03-21T20:39:50.523Z" },
+    { url = "https://files.pythonhosted.org/packages/96/ba/c14a404614fdeff1604f1e10163e4d7000b475cdbacfca6c7319f0756392/g4f-7.3.5-py3-none-any.whl", hash = "sha256:adf1a8ee12cf913f37327c1f67ff26d2c52160a39de107d185dbb2c80dedd705", size = 592166, upload-time = "2026-03-31T15:33:22.984Z" },
 ]
 
 [[package]]

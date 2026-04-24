@@ -1,6 +1,8 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from time import time
+from uuid import uuid4
 
 import g4f
 import httpx
@@ -11,6 +13,7 @@ from g4f.client import AsyncClient
 from g4f.client.stubs import ChatCompletion as G4fChatCompletion
 from g4f.client.stubs import UsageModel as G4fUsageModel
 from g4f.errors import ModelNotFoundError, ProviderNotWorkingError
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.adapters import adapt_response
 from backend.background import (
@@ -43,12 +46,14 @@ logger = logging.getLogger(__name__)
 
 router_root = APIRouter()
 router_api = APIRouter(prefix="/api")
+router_v1 = APIRouter(prefix="/v1")
 router_ui = APIRouter(prefix="/app")
 
 
 def add_routers(app: FastAPI) -> None:
     app.include_router(router_root)
     app.include_router(router_api)
+    app.include_router(router_v1)
     app.include_router(router_ui)
 
 
@@ -61,6 +66,39 @@ def get_root():
 class NofailParams:
     model: str
     provider: str
+
+
+class OpenAIChatCompletionRequest(CompletionRequest):
+    model: str | None = Field(
+        None,
+        description="OpenAI-compatible model name. When omitted, the backend picks one automatically.",
+    )
+    stream: bool = Field(
+        False,
+        description="Streaming is not supported by this compatibility endpoint.",
+    )
+    model_config = ConfigDict(extra="ignore")
+
+
+class OpenAIChatMessage(BaseModel):
+    role: str = Field("assistant")
+    content: str | None = Field(None)
+    tool_calls: list[ToolCall] | None = Field(None)
+
+
+class OpenAIChatChoice(BaseModel):
+    index: int = Field(0)
+    message: OpenAIChatMessage
+    finish_reason: str = Field("stop")
+
+
+class OpenAIChatCompletionResponse(BaseModel):
+    id: str
+    object: str = Field("chat.completion")
+    created: int
+    model: str
+    choices: list[OpenAIChatChoice]
+    usage: Usage | None = Field(None)
 
 
 def _tool_capable_providers() -> list[str]:
@@ -251,6 +289,30 @@ def _to_usage(g4f_usage: G4fUsageModel) -> Usage:
     )
 
 
+def _to_openai_chat_completion(
+    completion_response: CompletionResponse,
+) -> OpenAIChatCompletionResponse:
+    finish_reason = completion_response.finish_reason or (
+        "tool_calls" if completion_response.tool_calls else "stop"
+    )
+
+    return OpenAIChatCompletionResponse(
+        id=completion_response.id or f"chatcmpl-{uuid4().hex}",
+        created=int(time()),
+        model=completion_response.model or "",
+        choices=[
+            OpenAIChatChoice(
+                message=OpenAIChatMessage(
+                    content=completion_response.completion or None,
+                    tool_calls=completion_response.tool_calls,
+                ),
+                finish_reason=finish_reason,
+            )
+        ],
+        usage=completion_response.usage,
+    )
+
+
 async def _call_with_tools(
     completion: CompletionRequest, model_name: str, provider_name: str
 ) -> CompletionResponse:
@@ -320,11 +382,10 @@ async def _call_plain(
     )
 
 
-@router_api.post("/completions")
-async def post_completion(
+async def _complete_request(
     completion: CompletionRequest,
-    params: CompletionParams = Depends(),
-    chat: type[g4f.ChatCompletion] = Depends(chat_completion),
+    params: CompletionParams,
+    chat: type[g4f.ChatCompletion],
 ) -> CompletionResponse:
     has_tools = completion.tools is not None and len(completion.tools) > 0
 
@@ -416,6 +477,40 @@ async def post_completion(
         status_code=500,
         detail=f"Failed to get a response from the provider. Last tried model: {model_name} and provider: {provider_name}",
     )
+
+
+@router_api.post("/completions")
+async def post_completion(
+    completion: CompletionRequest,
+    params: CompletionParams = Depends(),
+    chat: type[g4f.ChatCompletion] = Depends(chat_completion),
+) -> CompletionResponse:
+    return await _complete_request(completion, params, chat)
+
+
+@router_api.post("/chat/completions")
+@router_v1.post("/chat/completions")
+async def post_openai_chat_completion(
+    completion: OpenAIChatCompletionRequest,
+    provider: str | None = None,
+    chat: type[g4f.ChatCompletion] = Depends(chat_completion),
+) -> OpenAIChatCompletionResponse:
+    if completion.stream:
+        raise HTTPException(
+            status_code=501,
+            detail="Streaming responses are not supported.",
+        )
+
+    completion_response = await _complete_request(
+        CompletionRequest(
+            messages=completion.messages,
+            tools=completion.tools,
+            tool_choice=completion.tool_choice,
+        ),
+        CompletionParams(model=completion.model, provider=provider),
+        chat,
+    )
+    return _to_openai_chat_completion(completion_response)
 
 
 @router_api.get("/providers")

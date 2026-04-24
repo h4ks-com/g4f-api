@@ -6,6 +6,17 @@ from fastapi.testclient import TestClient
 
 from backend import app
 from backend.dependencies import chat_completion
+from backend.settings import settings
+
+
+@pytest.fixture(autouse=True)
+def disable_background_provider_checks() -> Generator[None, None, None]:
+    previous = settings.CHECK_WORKING_PROVIDERS
+    settings.CHECK_WORKING_PROVIDERS = False
+    try:
+        yield
+    finally:
+        settings.CHECK_WORKING_PROVIDERS = previous
 
 
 @pytest.fixture(scope="function")

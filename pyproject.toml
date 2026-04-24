@@ -15,11 +15,13 @@ dependencies = [
     "browser-cookie3==0.20.1",
     "nodriver==0.46.1",
     "requests==2.32.4",
+    "pyyaml==6.0.2",
 ]
 
 [dependency-groups]
 dev = [
     "httpx==0.28.1",
+    "openai>=1,<2",
     "pytest==8.4.1",
     "pytest-xdist==3.7.0",
     "ruff==0.12.0",

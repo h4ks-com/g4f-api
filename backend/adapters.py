@@ -5,6 +5,7 @@ import yaml
 
 
 def url_decode(text: str) -> str:
+    """Decode percent-encoded provider responses."""
     return unquote(text)
 
 
@@ -14,6 +15,7 @@ ADAPTERS_MAP: dict[str, Callable[[str], str]] = {
 
 
 def _extract_content_from_payload(payload: dict) -> str | None:
+    """Extract assistant text from an OpenAI-style response payload."""
     choices = payload.get("choices")
     if not isinstance(choices, list) or not choices:
         return None
@@ -33,6 +35,7 @@ def _extract_content_from_payload(payload: dict) -> str | None:
 
 
 def _iter_mapping_candidates(text: str):
+    """Yield balanced mapping-like substrings from a concatenated response."""
     start_index: int | None = None
     depth = 0
     quote_char: str | None = None
@@ -66,6 +69,7 @@ def _iter_mapping_candidates(text: str):
 
 
 def extract_openai_content(response: dict | str) -> str:
+    """Recover assistant content from raw provider responses when possible."""
     if isinstance(response, dict):
         content = _extract_content_from_payload(response)
         if content is not None:
@@ -97,6 +101,7 @@ def extract_openai_content(response: dict | str) -> str:
 
 
 def adapt_response(model_name: str, response: dict | str) -> str:
+    """Normalize a provider response before returning plain text to callers."""
     text = extract_openai_content(response)
     adapter = ADAPTERS_MAP.get(model_name)
     if adapter is None:

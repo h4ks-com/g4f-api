@@ -20,6 +20,8 @@ curl -X POST http://localhost:8001/api/completions \
   -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
+OpenAI-compatible clients can target either `/v1/chat/completions` or `/api/chat/completions`.
+
 ## Provider Management
 
 This API uses a **whitelist approach** for provider management. Only curated, working providers are enabled (see `PROVIDER_WHITELIST` in `backend/dependencies.py`). This ensures reliable responses and fast failures.

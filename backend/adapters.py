@@ -1,9 +1,11 @@
-import ast
 from collections.abc import Callable
 from urllib.parse import unquote
 
+import yaml
+
 
 def url_decode(text: str) -> str:
+    """Decode percent-encoded provider responses."""
     return unquote(text)
 
 
@@ -12,12 +14,66 @@ ADAPTERS_MAP: dict[str, Callable[[str], str]] = {
 }
 
 
+def _extract_content_from_payload(payload: dict) -> str | None:
+    """Extract assistant text from an OpenAI-style response payload."""
+    choices = payload.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        return None
+
+    message = first_choice.get("message")
+    if not isinstance(message, dict) or "content" not in message:
+        return None
+
+    content = message.get("content")
+    if content is None:
+        return ""
+    return str(content)
+
+
+def _iter_mapping_candidates(text: str):
+    """Yield balanced mapping-like substrings from a concatenated response."""
+    start_index: int | None = None
+    depth = 0
+    quote_char: str | None = None
+    escaped = False
+
+    for index, char in enumerate(text):
+        if quote_char is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote_char:
+                quote_char = None
+            continue
+
+        if char in {'"', "'"}:
+            quote_char = char
+            continue
+
+        if char == "{":
+            if depth == 0:
+                start_index = index
+            depth += 1
+            continue
+
+        if char == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start_index is not None:
+                yield text[start_index : index + 1]
+                start_index = None
+
+
 def extract_openai_content(response: dict | str) -> str:
+    """Recover assistant content from raw provider responses when possible."""
     if isinstance(response, dict):
-        if "choices" in response and len(response["choices"]) > 0:
-            message = response["choices"][0].get("message", {})
-            if "content" in message:
-                return message["content"]
+        content = _extract_content_from_payload(response)
+        if content is not None:
+            return content
         return str(response)
 
     if not isinstance(response, str):
@@ -27,41 +83,25 @@ def extract_openai_content(response: dict | str) -> str:
     if "'choices'" not in response and '"choices"' not in response:
         return response
 
-    parts = response.split("}{")
+    for candidate in _iter_mapping_candidates(response):
+        if "choices" not in candidate:
+            continue
+        try:
+            parsed = yaml.safe_load(candidate)
+        except yaml.YAMLError:
+            continue
+        if not isinstance(parsed, dict):
+            continue
 
-    for i, part in enumerate(parts):
-        if i > 0:
-            part = "{" + part
-        if i < len(parts) - 1:
-            part = part + "}"
-
-        brace_count = 0
-        dict_end = -1
-        for j, char in enumerate(part):
-            if char == "{":
-                brace_count += 1
-            elif char == "}":
-                brace_count -= 1
-                if brace_count == 0:
-                    dict_end = j + 1
-                    break
-
-        if dict_end > 0:
-            dict_str = part[:dict_end]
-            try:
-                parsed = ast.literal_eval(dict_str)
-                if isinstance(parsed, dict) and "choices" in parsed:
-                    if len(parsed["choices"]) > 0:
-                        message = parsed["choices"][0].get("message", {})
-                        if "content" in message:
-                            return message["content"]
-            except (ValueError, SyntaxError):
-                continue
+        content = _extract_content_from_payload(parsed)
+        if content is not None:
+            return content
 
     return response
 
 
 def adapt_response(model_name: str, response: dict | str) -> str:
+    """Normalize a provider response before returning plain text to callers."""
     text = extract_openai_content(response)
     adapter = ADAPTERS_MAP.get(model_name)
     if adapter is None:

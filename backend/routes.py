@@ -13,7 +13,7 @@ from g4f.client import AsyncClient
 from g4f.client.stubs import ChatCompletion as G4fChatCompletion
 from g4f.client.stubs import UsageModel as G4fUsageModel
 
-from backend.adapters import adapt_response
+from backend.adapters import adapt_response, is_provider_refusal
 from backend.background import (
     add_successful_provider,
     get_cached_successful_providers,
@@ -413,11 +413,12 @@ async def post_completion(
                     completion, model_name, provider_name, chat
                 )
 
-            # Handle empty responses in nofail mode
+            # Handle empty and block-notice responses in nofail mode
             if (
                 (
                     not completion_response.completion
                     or completion_response.completion.strip() == ""
+                    or is_provider_refusal(completion_response.completion)
                 )
                 and not completion_response.tool_calls
                 and nofail

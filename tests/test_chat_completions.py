@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend import app
+from backend.adapters import is_provider_refusal
 from backend.dependencies import chat_completion
 
 COMPLETIONS_PATH = "/api/completions"
@@ -326,3 +327,33 @@ class TestPinnedModel:
         assert len(calls) > 1, "expected a retry on a different provider"
         assert {model for model, _ in calls} == {"gpt-4"}
         assert len({provider for _, provider in calls}) == len(calls)
+
+
+class TestProviderRefusal:
+    def test_block_notice_is_not_served_as_a_completion(self):
+        """A 200 carrying a provider block notice must rotate, not be returned."""
+        banned = (
+            "sorry, 您的ip已由于触发防滥用检测而被封禁，如果你使用代理 请关闭代理后再试"
+        )
+        assert is_provider_refusal(banned)
+        assert not is_provider_refusal("Red, blue, and green.")
+
+        calls: list[str | None] = []
+        chat = Mock()
+
+        def create(**kwargs):
+            calls.append(kwargs.get("provider"))
+            return banned if len(calls) == 1 else "Red, blue, green."
+
+        chat.create.side_effect = create
+        app.dependency_overrides[chat_completion] = lambda: chat
+        with TestClient(app) as client:
+            response = client.post(
+                COMPLETIONS_PATH,
+                json={"messages": [{"role": "user", "content": "colors?"}]},
+            )
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert not is_provider_refusal(response.json()["completion"])
+        assert len(calls) > 1

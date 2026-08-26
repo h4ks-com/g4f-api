@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from g4f import AsyncClient, ProviderType
 from g4f.client.stubs import ChatCompletion
 
+from backend.adapters import is_provider_refusal
 from backend.dependencies import (
     base_working_providers_map,
     load_provider_models,
@@ -112,7 +113,7 @@ async def test_provider(
         try:
             async with asyncio.timeout(settings.PROVIDER_TEST_TIMEOUT):
                 text = await ai_respond(messages, model, provider=provider)
-            result = len(text.strip()) > 0 and isinstance(text, str)
+            result = bool(text.strip()) and not is_provider_refusal(text)
 
             # If successful, remove from failures store
             if result and provider_name in provider_failures:

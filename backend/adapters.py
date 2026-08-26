@@ -67,3 +67,22 @@ def adapt_response(model_name: str, response: dict | str) -> str:
     if adapter is None:
         return text
     return adapter(text)
+
+
+# Some providers answer with a block notice or a stub fragment at HTTP 200. These pass a
+# plain non-empty check and would otherwise be served as a real completion.
+PROVIDER_REFUSAL_MARKERS = (
+    "触发防滥用检测",
+    "您的ip已",
+    "your ip has been banned",
+    "your ip has been blocked",
+    "ip address has been banned",
+    "access denied",
+    "rate limit exceeded",
+)
+
+
+def is_provider_refusal(text: str) -> bool:
+    """Whether a 200-status completion is really a block notice rather than an answer."""
+    lowered = text.strip().lower()
+    return any(marker in lowered for marker in PROVIDER_REFUSAL_MARKERS)

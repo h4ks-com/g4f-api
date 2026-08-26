@@ -6,19 +6,19 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from backend.models.usage import Usage
 
 __all__ = [
+    "CompletionModel",
+    "CompletionProvider",
+    "CompletionRequest",
+    "CompletionResponse",
     "Message",
+    "ProviderFailure",
+    "ProviderFailuresResponse",
     "ToolCall",
     "ToolCallFunction",
     "ToolChoice",
     "ToolChoiceFunction",
     "ToolDefinition",
     "ToolFunction",
-    "CompletionRequest",
-    "CompletionResponse",
-    "CompletionModel",
-    "CompletionProvider",
-    "ProviderFailure",
-    "ProviderFailuresResponse",
 ]
 
 

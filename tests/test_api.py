@@ -2,11 +2,32 @@ from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
+from g4f.models import ModelUtils
 
 from backend import app
-from backend.dependencies import chat_completion, provider_and_models
+from backend.dependencies import (
+    base_working_providers_map,
+    chat_completion,
+    provider_and_models,
+)
 
 COMPLETION_PATH = "/api/completions"
+
+# Static registries only: live discovery differs per process and breaks xdist test IDs.
+ALL_MODELS = sorted(ModelUtils.convert)
+ALL_PROVIDERS = sorted(base_working_providers_map)
+
+
+def _skip_unless_discovered(
+    model: str | None = None, provider: str | None = None
+) -> None:
+    if model is not None and model not in provider_and_models.all_model_names:
+        pytest.skip(f"model not offered by any discovered provider: {model}")
+    if (
+        provider is not None
+        and provider not in provider_and_models.all_working_providers_map
+    ):
+        pytest.skip(f"provider not currently discovered: {provider}")
 
 
 def test_api_validation():
@@ -76,8 +97,9 @@ def test_api_validation():
         assert response.json()["completion"] == "response"
 
 
-@pytest.mark.parametrize("model", sorted(provider_and_models.all_model_names))
+@pytest.mark.parametrize("model", ALL_MODELS)
 def test_all_models(client: TestClient, model: str) -> None:
+    _skip_unless_discovered(model=model)
     response = client.post(
         COMPLETION_PATH,
         params={"model": model},
@@ -87,10 +109,9 @@ def test_all_models(client: TestClient, model: str) -> None:
     assert response.json()["completion"] == "response"
 
 
-@pytest.mark.parametrize(
-    "provider", sorted(provider_and_models.all_working_provider_names)
-)
+@pytest.mark.parametrize("provider", ALL_PROVIDERS)
 def test_all_providers(client: TestClient, provider: str) -> None:
+    _skip_unless_discovered(provider=provider)
     response = client.post(
         COMPLETION_PATH,
         params={"provider": provider},
@@ -100,13 +121,12 @@ def test_all_providers(client: TestClient, provider: str) -> None:
     assert response.json()["completion"] == "response"
 
 
-@pytest.mark.parametrize("model", sorted(provider_and_models.all_model_names))
-@pytest.mark.parametrize(
-    "provider", sorted(provider_and_models.all_working_provider_names)
-)
+@pytest.mark.parametrize("model", ALL_MODELS)
+@pytest.mark.parametrize("provider", ALL_PROVIDERS)
 def test_all_provider_model_combination(
     client: TestClient, model: str, provider: str
 ) -> None:
+    _skip_unless_discovered(model=model, provider=provider)
     model_supported = (
         model
         in provider_and_models.all_working_providers_map[provider].supported_models

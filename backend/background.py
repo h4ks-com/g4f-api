@@ -6,9 +6,17 @@ from datetime import datetime, timedelta
 from g4f import AsyncClient, ProviderType
 from g4f.client.stubs import ChatCompletion
 
-from backend.dependencies import base_working_providers_map, provider_and_models
+from backend.dependencies import (
+    base_working_providers_map,
+    load_provider_models,
+    provider_and_models,
+    provider_model_names,
+)
 from backend.errors import CustomValidationError
 from backend.models import ProviderFailure
+from backend.settings import settings
+
+FALLBACK_PROBE_MODEL = "gpt-4"
 
 lock = asyncio.Lock()
 
@@ -77,29 +85,32 @@ async def ai_respond(messages: list[dict], model: str, provider: ProviderType) -
     return choices[0].message.content
 
 
+def _probe_model(provider: ProviderType) -> str:
+    """Pick the model most likely to answer when probing a provider."""
+    default_model = getattr(provider, "default_model", None)
+    if isinstance(default_model, str) and default_model:
+        return default_model
+    declared = provider_model_names(provider)
+    if declared:
+        return min(declared)
+    known = provider_and_models.all_working_providers_map.get(provider.__name__)
+    if known and known.supported_models:
+        return min(known.supported_models)
+    return FALLBACK_PROBE_MODEL
+
+
 async def test_provider(
     provider: ProviderType, queue: asyncio.Queue, semaphore: asyncio.Semaphore
 ) -> bool:
     """Sends hi to a provider and check if there is response or error."""
     print(f"Testing provider {provider.__name__}")
     provider_name = provider.__name__
+    messages = [{"role": "user", "content": "hi, how are you?"}]
+    model = _probe_model(provider)
 
     async with semaphore:
         try:
-            messages = [{"role": "user", "content": "hi, how are you?"}]
-            if hasattr(provider, "supported_models"):
-                model = list(provider.supported_models)[0]
-            elif hasattr(provider, "default_model"):
-                model = provider.default_model
-            elif provider.__name__ in provider_and_models.all_working_providers_map:
-                model = list(
-                    provider_and_models.all_working_providers_map[
-                        provider.__name__
-                    ].supported_models
-                )[0]
-            else:
-                model = "gpt-4"
-            async with asyncio.timeout(5):
+            async with asyncio.timeout(settings.PROVIDER_TEST_TIMEOUT):
                 text = await ai_respond(messages, model, provider=provider)
             result = len(text.strip()) > 0 and isinstance(text, str)
 
@@ -124,7 +135,7 @@ async def test_provider(
             result = False
             provider_failures[provider_name] = ProviderFailure(
                 error_type="TimeoutError",
-                error_message="Request timed out after 5 seconds",
+                error_message=f"Request timed out after {settings.PROVIDER_TEST_TIMEOUT} seconds",
                 traceback=traceback.format_exc(),
                 timestamp=datetime.now(),
                 model_used=model,
@@ -167,6 +178,7 @@ async def update_working_providers():
         now_working_providers = set()
         queue = asyncio.Queue()
         providers = list(base_working_providers_map.values())
+        await asyncio.to_thread(load_provider_models, base_working_providers_map)
 
         async def producer():
             semaphore = asyncio.Semaphore(8)

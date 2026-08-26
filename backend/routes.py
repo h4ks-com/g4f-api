@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import g4f
@@ -10,7 +12,6 @@ from fastapi.templating import Jinja2Templates
 from g4f.client import AsyncClient
 from g4f.client.stubs import ChatCompletion as G4fChatCompletion
 from g4f.client.stubs import UsageModel as G4fUsageModel
-from g4f.errors import ModelNotFoundError, ProviderNotWorkingError
 
 from backend.adapters import adapt_response
 from backend.background import (
@@ -20,10 +21,14 @@ from backend.background import (
 )
 from backend.dependencies import (
     BEST_MODELS_ORDERED,
+    MODEL_RANK,
+    UNRANKED_MODEL,
     CompletionParams,
     Message,
     UiCompletionRequest,
+    base_working_providers_map,
     chat_completion,
+    model_default_providers,
     provider_and_models,
 )
 from backend.errors import CustomValidationError
@@ -40,6 +45,8 @@ from backend.models import (
 from backend.settings import TEMPLATES_PATH
 
 logger = logging.getLogger(__name__)
+
+PROVIDER_ATTEMPTS_BEFORE_ROTATING = 2
 
 router_root = APIRouter()
 router_api = APIRouter(prefix="/api")
@@ -84,10 +91,14 @@ def _resolve_nofail_params(
     failed_combinations: set[tuple[str, str]] | None = None,
     offset: int = 0,
     require_tools: bool = False,
+    exhausted_providers: set[str] | None = None,
+    models: Sequence[str] | None = None,
 ) -> NofailParams:
     """Shared nofail provider/model selection.
 
-    When *failed_combinations* is provided, skip those (model, provider) pairs.
+    Skips any (model, provider) pair in *failed_combinations*, and any provider in
+    *exhausted_providers* entirely. Passing *models* confines the search to those
+    names, which is how a request that pinned a model keeps it across retries.
     """
     providers_to_check = list(provider_and_models.all_working_provider_names)
     if require_tools:
@@ -97,19 +108,19 @@ def _resolve_nofail_params(
                 status_code=422,
                 detail="No tool-capable providers currently working.",
             )
+    if exhausted_providers:
+        remaining = [p for p in providers_to_check if p not in exhausted_providers]
+        # Falling back to a spent provider still beats giving up with no answer at all.
+        providers_to_check = remaining or providers_to_check
 
     def _is_allowed(model: str, provider_name: str) -> bool:
+        if provider_name not in providers_to_check:
+            return False
         if failed_combinations is None:
             return True
         return (model, provider_name) not in failed_combinations
 
-    for model in BEST_MODELS_ORDERED:
-        try:
-            default_provider = g4f.get_model_and_provider(model, None, False)[1]
-        except (ModelNotFoundError, ProviderNotWorkingError):
-            logger.warning("Model not found or not working: %s", model)
-            continue
-
+    for model in models if models is not None else BEST_MODELS_ORDERED:
         if offset > 0:
             offset -= 1
             continue
@@ -123,11 +134,12 @@ def _resolve_nofail_params(
             ):
                 return NofailParams(model=model, provider=provider_name)
 
-        # Priority 2: default provider
-        if default_provider.__name__ in providers_to_check and _is_allowed(
-            model, default_provider.__name__
-        ):
-            return NofailParams(model=model, provider=default_provider.__name__)
+        # Priority 2: providers g4f recommends for this model
+        for provider_name in model_default_providers(model):
+            if _is_provider_model_available(provider_name, model) and _is_allowed(
+                model, provider_name
+            ):
+                return NofailParams(model=model, provider=provider_name)
 
         # Priority 3: all cached successes (no model filter)
         for provider_name in get_cached_successful_providers():
@@ -160,12 +172,31 @@ def get_nofail_params_excluding_failed(
     failed_combinations: set[tuple[str, str]],
     offset: int = 0,
     require_tools: bool = False,
+    exhausted_providers: set[str] | None = None,
+    models: Sequence[str] | None = None,
 ) -> NofailParams:
     return _resolve_nofail_params(
         failed_combinations=failed_combinations,
         offset=offset,
         require_tools=require_tools,
+        exhausted_providers=exhausted_providers,
+        models=models,
     )
+
+
+def _first_provider_for_model(model: str) -> str | None:
+    """A working provider serving *model*, preferring one that answered recently.
+
+    None means no discovered provider advertises it, leaving g4f to route the model
+    itself the way it does when no provider is requested.
+    """
+    for provider_name in get_cached_successful_providers(model_filter=model):
+        if _is_provider_model_available(provider_name, model):
+            return provider_name
+    for provider_name in provider_and_models.all_working_provider_names:
+        if _is_provider_model_available(provider_name, model):
+            return provider_name
+    return None
 
 
 def get_best_model_for_provider(provider_name: str) -> str:
@@ -181,11 +212,14 @@ def get_best_model_for_provider(provider_name: str) -> str:
             detail=f"No models supported by provider: {provider_name}. Please specify a model.",
         )
 
-    def _sort_key(model: str) -> int:
-        return BEST_MODELS_ORDERED.index(model) if model in BEST_MODELS_ORDERED else 999
+    # A provider's own default is the one model it is guaranteed to serve unauthenticated;
+    # ranking alone tends to land on a model the provider gates behind a paid account.
+    provider_class = _get_provider_class(provider_name)
+    default_model = getattr(provider_class, "default_model", None)
+    if isinstance(default_model, str) and default_model in provider.supported_models:
+        return default_model
 
-    models.sort(key=_sort_key)
-    return models[0]
+    return min(models, key=lambda model: (MODEL_RANK.get(model, UNRANKED_MODEL), model))
 
 
 _public_ip_cache: str | None = None
@@ -207,10 +241,7 @@ async def get_public_ip() -> str | None:
 
 
 def _get_provider_class(provider_name: str) -> type | None:
-    for provider in g4f.Provider.__providers__:
-        if provider.__name__ == provider_name:
-            return provider
-    return None
+    return base_working_providers_map.get(provider_name)
 
 
 def _to_tool_calls(raw_tool_calls: list) -> list[ToolCall] | None:
@@ -337,12 +368,33 @@ async def post_completion(
         else:
             provider_name = params.provider
             model_name = get_best_model_for_provider(provider_name)
-    else:
+    elif params.provider is not None:
         model_name = params.model
         provider_name = params.provider
+    else:
+        model_name = params.model
+        resolved = _first_provider_for_model(model_name)
+        provider_name = resolved
+        nofail = resolved is not None
+
+    # A pinned model must survive every retry: rotate providers underneath it, never
+    # silently answer with a model the caller did not ask for.
+    pinned_models = [params.model] if params.model is not None else None
 
     ip_detected_response: CompletionResponse | None = None
     failed_combinations: set[tuple[str, str]] = set()
+    provider_failures_here: Counter[str] = Counter()
+    exhausted_providers: set[str] = set()
+
+    def _record_failure(model: str, provider: str) -> None:
+        """Retire a provider after a couple of misses so retries move on to another.
+
+        Otherwise a single broken provider with many models eats every attempt.
+        """
+        failed_combinations.add((model, provider))
+        provider_failures_here[provider] += 1
+        if provider_failures_here[provider] >= PROVIDER_ATTEMPTS_BEFORE_ROTATING:
+            exhausted_providers.add(provider)
 
     for attempt in range(10):
         logger.debug(
@@ -370,9 +422,13 @@ async def post_completion(
                 and not completion_response.tool_calls
                 and nofail
             ):
-                failed_combinations.add((model_name, provider_name))
+                _record_failure(model_name, provider_name)
                 nofail_params = get_nofail_params_excluding_failed(
-                    failed_combinations, attempt, require_tools=has_tools
+                    failed_combinations,
+                    0 if pinned_models else attempt,
+                    require_tools=has_tools,
+                    exhausted_providers=exhausted_providers,
+                    models=pinned_models,
                 )
                 model_name, provider_name = nofail_params.model, nofail_params.provider
                 continue
@@ -400,9 +456,13 @@ async def post_completion(
                 attempt,
                 e,
             )
-            failed_combinations.add((model_name, provider_name))
+            _record_failure(model_name, provider_name)
             nofail_params = get_nofail_params_excluding_failed(
-                failed_combinations, attempt, require_tools=has_tools
+                failed_combinations,
+                0 if pinned_models else attempt,
+                require_tools=has_tools,
+                exhausted_providers=exhausted_providers,
+                models=pinned_models,
             )
             model_name, provider_name = nofail_params.model, nofail_params.provider
 

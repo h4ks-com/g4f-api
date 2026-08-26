@@ -3,26 +3,28 @@ name = "g4f-api"
 version = "0.0.1"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi==0.115.12",
-    "g4f>=7.5.1",
-    "pydantic-settings==2.9.1",
-    "pydantic==2.11.5",
-    "hypercorn==0.17.3",
+    "fastapi==0.141.1",
+    "g4f>=8.2.5",
+    "pydantic-settings==2.15.0",
+    "pydantic==2.13.4",
+    "hypercorn==0.18.0",
     "jinja2==3.1.6",
-    "curl-cffi==0.11.4",
+    "curl-cffi==0.16.2",
     "typing-inspect==0.9.0",
-    "aiohttp-socks==0.10.1",
+    "aiohttp==3.14.3",
+    "aiohttp-socks==0.12.0",
     "browser-cookie3==0.20.1",
-    "nodriver==0.46.1",
-    "requests==2.32.4",
+    "nodriver==0.50.3",
+    "requests==2.34.2",
+    "websocket-client==1.9.0",
+    "httpx==0.28.1",
 ]
 
 [dependency-groups]
 dev = [
-    "httpx==0.28.1",
-    "pytest==8.4.1",
-    "pytest-xdist==3.7.0",
-    "ruff==0.12.0",
+    "pytest==9.1.1",
+    "pytest-xdist==3.8.0",
+    "ruff==0.16.4",
 ]
 
 [tool.uv]

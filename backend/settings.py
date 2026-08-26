@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     RELOAD: bool = False
     CHECK_WORKING_PROVIDERS: bool = True
+    PROVIDER_TEST_TIMEOUT: int = 30
     DEBUG: bool = False
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -7,7 +7,7 @@ from backend.dependencies import base_working_providers_map
 
 
 async def test_top_providers():
-    """Test all whitelisted providers"""
+    """Test every auto-discovered provider"""
     priority_providers = sorted(base_working_providers_map.keys())
 
     print(f"\n{'=' * 60}")

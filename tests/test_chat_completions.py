@@ -297,3 +297,32 @@ class TestPydanticModels:
         assert resp.finish_reason is None
         assert resp.id is None
         assert resp.usage is None
+
+
+class TestPinnedModel:
+    def test_pinned_model_survives_provider_rotation(self):
+        """A requested model must never be swapped when a provider fails."""
+        calls: list[tuple[str | None, str | None]] = []
+        chat = Mock()
+
+        def create(**kwargs):
+            calls.append((kwargs.get("model"), kwargs.get("provider")))
+            if len(calls) == 1:
+                raise RuntimeError("transient upstream failure")
+            return "response"
+
+        chat.create.side_effect = create
+        app.dependency_overrides[chat_completion] = lambda: chat
+        with TestClient(app) as client:
+            response = client.post(
+                COMPLETIONS_PATH,
+                params={"model": "gpt-4"},
+                json={"messages": [{"role": "user", "content": "hi"}]},
+            )
+        app.dependency_overrides.clear()
+
+        assert response.status_code == 200
+        assert response.json()["model"] == "gpt-4"
+        assert len(calls) > 1, "expected a retry on a different provider"
+        assert {model for model, _ in calls} == {"gpt-4"}
+        assert len({provider for _, provider in calls}) == len(calls)

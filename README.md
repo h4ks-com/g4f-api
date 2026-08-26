@@ -6,30 +6,40 @@ Alternative API for getting text completions from the [g4f project](https://gith
 
 - https://g4f.h4ks.com/
 
-## Quick Start
+## Run
 
 ```bash
-./start.sh
+docker compose up --build
+```
+
+Or locally, reading settings from `.env` (see `.env.example`):
+
+```bash
+uv run python3 -m backend.run
 ```
 
 Then make requests:
 
 ```bash
-curl -X POST http://localhost:8001/api/completions \
+curl -X POST http://localhost:8000/api/completions \
   -H "Content-Type: application/json" \
   -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
-## Provider Management
+Without `model` or `provider` query params the API picks one and falls back through others until it gets an answer. `GET /api/providers` and `GET /api/models` list what is currently available, and `GET /api/provider-failures` shows why the rest were dropped.
 
-This API uses a **whitelist approach** for provider management. Only curated, working providers are enabled (see `PROVIDER_WHITELIST` in `backend/dependencies.py`). This ensures reliable responses and fast failures.
+## Providers
 
-### Testing Providers
+Providers are discovered automatically at startup: every g4f provider that is marked working, needs no credentials, and never drives a headless browser. A background task probes them on boot and hourly, keeping only the ones that answer.
 
-Test all whitelisted providers automatically:
+Probe them by hand with:
 
 ```bash
 uv run python3 test_providers.py
 ```
 
-This will test each provider and show you which ones are currently working. Update `PROVIDER_WHITELIST` based on the results.
+## Tests
+
+```bash
+uv run python -m pytest -n 10 tests/
+```

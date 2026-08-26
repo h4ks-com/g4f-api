@@ -124,16 +124,15 @@ def _is_media_only(provider: type[BaseProvider]) -> bool:
 
 
 def _may_launch_browser(provider: type[BaseProvider]) -> bool:
-    """Whether a provider can fall back to driving a real browser.
+    """Whether a provider can reach for a real browser.
 
-    `use_nodriver` only covers providers that always need one. Others import nodriver
-    and reach for it just to clear a captcha, which still pops a browser on the host.
-    Declaring `use_nodriver` explicitly is taken as the provider having settled it.
+    `use_nodriver` only covers providers that always need one, and a provider setting it
+    False still drives a browser on its captcha path: Cloudflare declares False and dies
+    on "Google Chrome / Chromium / Edge executable not found". The module referencing
+    nodriver at all is the signal that holds.
     """
     if getattr(provider, "use_nodriver", False):
         return True
-    if "use_nodriver" in vars(provider):
-        return False
     module = sys.modules.get(provider.__module__)
     if module is None:
         return False

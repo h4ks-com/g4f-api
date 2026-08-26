@@ -1,3 +1,5 @@
+import inspect
+import sys
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +8,7 @@ from g4f.models import ModelUtils
 
 from backend import app
 from backend.dependencies import (
+    BROWSER_MARKERS,
     base_working_providers_map,
     chat_completion,
     provider_and_models,
@@ -142,3 +145,20 @@ def test_all_provider_model_combination(
     else:
         assert response.status_code == 422
     app.dependency_overrides.clear()
+
+
+def test_no_discovered_provider_can_launch_a_browser() -> None:
+    """Discovery must exclude both browser mechanisms g4f can reach for."""
+    offenders = []
+    for name, provider in base_working_providers_map.items():
+        module = sys.modules.get(provider.__module__)
+        if module is None:
+            continue
+        try:
+            source = inspect.getsource(module)
+        except (OSError, TypeError):
+            continue
+        hits = [m for m in BROWSER_MARKERS if m in source]
+        if hits or getattr(provider, "use_nodriver", False):
+            offenders.append((name, hits))
+    assert not offenders, f"providers able to launch a browser: {offenders}"

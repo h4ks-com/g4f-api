@@ -123,13 +123,17 @@ def _is_media_only(provider: type[BaseProvider]) -> bool:
     return bool(models) and models <= media
 
 
+# g4f drives a browser two independent ways: nodriver/zendriver, and a Chrome DevTools
+# Protocol client. Both end at "Google Chrome / Chromium / Edge executable not found."
+BROWSER_MARKERS = ("nodriver", "zendriver", "cdp")
+
+
 def _may_launch_browser(provider: type[BaseProvider]) -> bool:
     """Whether a provider can reach for a real browser.
 
     `use_nodriver` only covers providers that always need one, and a provider setting it
-    False still drives a browser on its captcha path: Cloudflare declares False and dies
-    on "Google Chrome / Chromium / Edge executable not found". The module referencing
-    nodriver at all is the signal that holds.
+    False still drives a browser on its captcha path. What holds is the module reaching
+    for either browser mechanism at all.
     """
     if getattr(provider, "use_nodriver", False):
         return True
@@ -140,7 +144,7 @@ def _may_launch_browser(provider: type[BaseProvider]) -> bool:
         source = inspect.getsource(module)
     except (OSError, TypeError):
         return False
-    return "nodriver" in source or "zendriver" in source
+    return any(marker in source for marker in BROWSER_MARKERS)
 
 
 def is_usable_provider(provider: type[BaseProvider]) -> bool:

@@ -543,7 +543,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -671,7 +671,7 @@ wheels = [
 
 [[package]]
 name = "g4f"
-version = "8.2.5"
+version = "8.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -680,9 +680,9 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/7e/2121930bbffdeeb50b268a827aa006a246922b3f821a2e45ac7e71f515d6/g4f-8.2.5.tar.gz", hash = "sha256:2aaa5a145bcf5b2d861796a853d3716220599716c16fb58bc51acf4f27029990", size = 632914, upload-time = "2026-08-26T06:57:25.651Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/8f/37fb692cc93768e3e6ea0b5ad09b217d415da5d9df4c1c4f922f641f373a/g4f-8.3.0.tar.gz", hash = "sha256:58e0312b6421c7df239894e18b611bd554396babdd62a6b735ff3330bfa59659", size = 644458, upload-time = "2026-09-03T16:03:52.405Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/2b/5985cd4a19156c7657bb252893a7f84c3f549b74d158ed56948e1fd9b6e6/g4f-8.2.5-py3-none-any.whl", hash = "sha256:301599273d7388ecab44245fa2e7827f66e1eda0e918292a32992f69da5b0844", size = 719309, upload-time = "2026-08-26T06:57:23.781Z" },
+    { url = "https://files.pythonhosted.org/packages/06/ea/e54797528600217bfbd78764d82e9a49fb8ab81e71c3239e6431966268e9/g4f-8.3.0-py3-none-any.whl", hash = "sha256:c4b0b577939017c956613f5546f44bd038bdd1fb6eaf504cb46df7ec3f855f07", size = 732344, upload-time = "2026-09-03T16:03:50.761Z" },
 ]
 
 [[package]]
@@ -720,7 +720,7 @@ requires-dist = [
     { name = "browser-cookie3", specifier = "==0.20.1" },
     { name = "curl-cffi", specifier = "==0.16.2" },
     { name = "fastapi", specifier = "==0.141.1" },
-    { name = "g4f", specifier = ">=8.2.5" },
+    { name = "g4f", specifier = ">=8.3.0" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "hypercorn", specifier = "==0.18.0" },
     { name = "jinja2", specifier = "==3.1.6" },
@@ -1604,8 +1604,8 @@ name = "taskgroup"
 version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "exceptiongroup" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f0/8d/e218e0160cc1b692e6e0e5ba34e8865dbb171efeb5fc9a704544b3020605/taskgroup-0.2.2.tar.gz", hash = "sha256:078483ac3e78f2e3f973e2edbf6941374fbea81b9c5d0a96f51d297717f4752d", size = 11504, upload-time = "2025-01-03T09:24:13.761Z" }
 wheels = [

@@ -4,7 +4,7 @@ version = "0.0.1"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi==0.141.1",
-    "g4f>=8.2.5",
+    "g4f>=8.3.0",
     "pydantic-settings==2.15.0",
     "pydantic==2.13.4",
     "hypercorn==0.18.0",
